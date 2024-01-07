@@ -171,11 +171,11 @@ def create_parser() -> argparse.ArgumentParser:
 def run_pants_help_all() -> dict[str, Any]:
     # List all (stable enough) backends here.
     backends = [
+        "pants.backend.awslambda.python",
         "pants.backend.build_files.fix.deprecations",
         "pants.backend.build_files.fmt.black",
         "pants.backend.build_files.fmt.buildifier",
         "pants.backend.build_files.fmt.yapf",
-        "pants.backend.awslambda.python",
         "pants.backend.codegen.protobuf.lint.buf",
         "pants.backend.codegen.protobuf.python",
         "pants.backend.codegen.thrift.apache.python",
@@ -191,6 +191,7 @@ def run_pants_help_all() -> dict[str, Any]:
         "pants.backend.experimental.java.lint.google_java_format",
         "pants.backend.experimental.kotlin",
         "pants.backend.experimental.kotlin.lint.ktlint",
+        "pants.backend.experimental.makeself",
         "pants.backend.experimental.openapi",
         "pants.backend.experimental.openapi.lint.openapi_format",
         "pants.backend.experimental.openapi.lint.spectral",
