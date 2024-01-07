@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from pants.backend.experimental.python.lint.ruff import register as ruff_register
+from pants.backend.python import register as python_register
 from pants.backend.python import target_types_rules
 from pants.backend.python.lint.ruff import skip_field
 from pants.backend.python.lint.ruff.rules import (
@@ -20,13 +22,16 @@ from pants.backend.python.lint.ruff.rules import rules as ruff_rules
 from pants.backend.python.lint.ruff.subsystem import RuffFieldSet
 from pants.backend.python.lint.ruff.subsystem import rules as ruff_subsystem_rules
 from pants.backend.python.target_types import PythonSourcesGeneratorTarget
+from pants.core.goals import lint
 from pants.core.goals.fix import FixResult
 from pants.core.goals.fmt import FmtResult
-from pants.core.goals.lint import LintResult
+from pants.core.goals.lint import Lint, LintResult
 from pants.core.util_rules import config_files
 from pants.core.util_rules.partitions import _EmptyMetadata
 from pants.core.util_rules.source_files import SourceFiles, SourceFilesRequest
 from pants.engine.addresses import Address
+from pants.engine.environment import EnvironmentName
+from pants.engine.fs import SpecsPaths
 from pants.engine.target import Target
 from pants.testutil.python_interpreter_selection import all_major_minor_python_versions
 from pants.testutil.rule_runner import QueryRule, RuleRunner
@@ -45,6 +50,7 @@ def rule_runner() -> RuleRunner:
             *ruff_subsystem_rules(),
             *config_files.rules(),
             *target_types_rules.rules(),
+            *lint.rules(),
             QueryRule(FixResult, [RuffFixRequest.Batch]),
             QueryRule(LintResult, [RuffCheckLintRequest.Batch]),
             QueryRule(LintResult, [RuffFormatLintRequest.Batch]),
@@ -227,3 +233,21 @@ def test_config_file(
     assert result.check_lint.exit_code == bool(should_change)
     assert not result.format_lint.exit_code
     assert result.fix.did_change is should_change
+
+
+@pytest.fixture
+def goal_runner() -> RuleRunner:
+    return RuleRunner(
+        rules=[
+            *lint.rules(),
+            *python_register.rules(),
+            *ruff_register.rules(),
+            # QueryRule(Lint, ()),
+        ]
+    )
+
+
+def test_lint_goal_doesnt_invoke_format(goal_runner: RuleRunner):
+    goal_runner.write_files({"f.py": GOOD_FILE, "BUILD": "python_sources(name='t')"})
+    result = goal_runner.run_goal_rule(Lint)
+    assert result == []
