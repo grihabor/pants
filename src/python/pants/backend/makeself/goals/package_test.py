@@ -190,3 +190,55 @@ def test_multiple_scripts(rule_runner: RuleRunner) -> None:
         ],
     )
     assert result.stdout == b"helloworld"
+
+
+def test_inception(rule_runner: RuleRunner) -> None:
+    binary_name = "outer"
+
+    rule_runner.write_files(
+        {
+            "src/shell/BUILD": dedent(
+                f"""
+                shell_sources()
+                makeself_archive(
+                    name='{binary_name}',
+                    startup_script='src.shell/inner.run',
+                    packages=["src/shell:inner"],
+                )
+                makeself_archive(
+                    name='inner',
+                    startup_script=['printf', 'helloworld'],
+                )
+                """
+            ),
+            "src/shell/hello.sh": dedent(
+                """
+                 #!/bin/bash
+                 printf hello
+                 """
+            ),
+        }
+    )
+
+    target = rule_runner.get_target(Address("src/shell", target_name=binary_name))
+    field_set = MakeselfArchiveFieldSet.create(target)
+
+    package = rule_runner.request(BuiltPackage, [field_set])
+
+    assert len(package.artifacts) == 1, field_set
+    assert isinstance(package.artifacts[0], BuiltMakeselfArchiveArtifact)
+    relpath = f"src.shell/{binary_name}.run"
+    assert package.artifacts[0].relpath == relpath
+
+    result = rule_runner.request(
+        ProcessResult,
+        [
+            RunMakeselfArchive(
+                exe=relpath,
+                extra_args=("--quiet",),
+                description="Run built subsystem archive",
+                input_digest=package.digest,
+            )
+        ],
+    )
+    assert result.stdout == b"helloworld"

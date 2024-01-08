@@ -6,7 +6,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import PurePath
-from typing import Optional
+from typing import Optional, Tuple
 
 from pants.backend.makeself.goals.run import MakeselfArchiveFieldSet
 from pants.backend.makeself.subsystem import MakeselfTool
@@ -68,7 +68,7 @@ class CreateMakeselfArchive:
     archive_dir: str
     file_name: str
     label: str
-    startup_script: str
+    startup_script: Tuple[str, ...]
     input_digest: Digest
     description: str = dataclasses.field(compare=False)
     output_filename: str
@@ -136,8 +136,7 @@ async def create_makeself_archive(
         request.archive_dir,
         request.file_name,
         request.label,
-        os.path.join(os.curdir, request.startup_script),
-    )
+    ) + request.startup_script
     process = Process(
         argv,
         input_digest=request.input_digest,
@@ -170,8 +169,7 @@ class BuiltMakeselfArchiveArtifact(BuiltPackageArtifact):
 async def package_makeself_binary(field_set: MakeselfArchiveFieldSet) -> BuiltPackage:
     archive_dir = "__archive"
 
-    startup_script_targets, package_targets, file_targets = await MultiGet(
-        Get(Targets, UnparsedAddressInputs, field_set.startup_script.to_unparsed_address_inputs()),
+    package_targets, file_targets = await MultiGet(
         Get(Targets, UnparsedAddressInputs, field_set.packages.to_unparsed_address_inputs()),
         Get(Targets, UnparsedAddressInputs, field_set.files.to_unparsed_address_inputs()),
     )
@@ -184,7 +182,7 @@ async def package_makeself_binary(field_set: MakeselfArchiveFieldSet) -> BuiltPa
         for field_set in package_field_sets_per_target.field_sets
     )
 
-    startup_script, *file_sources = await MultiGet(
+    file_sources = await MultiGet(
         Get(
             HydratedSources,
             HydrateSourcesRequest(
@@ -193,16 +191,13 @@ async def package_makeself_binary(field_set: MakeselfArchiveFieldSet) -> BuiltPa
                 enable_codegen=True,
             ),
         )
-        for tgt in itertools.chain(startup_script_targets, file_targets)
+        for tgt in file_targets
     )
-
-    assert len(startup_script.snapshot.files) == 1, (startup_script, file_sources)
 
     input_digest = await Get(
         Digest,
         MergeDigests(
             (
-                startup_script.snapshot.digest,
                 *(package.digest for package in packages),
                 *(sources.snapshot.digest for sources in file_sources),
             )
@@ -212,14 +207,13 @@ async def package_makeself_binary(field_set: MakeselfArchiveFieldSet) -> BuiltPa
 
     output_path = PurePath(field_set.output_path.value_or_default(file_ending="run"))
     output_filename = output_path.name
-    startup_script_file = startup_script.snapshot.files[0]
     result = await Get(
         ProcessResult,
         CreateMakeselfArchive(
             archive_dir=archive_dir,
             file_name=output_filename,
             label=field_set.label.value or output_filename,
-            startup_script=startup_script_file,
+            startup_script=field_set.startup_script,
             input_digest=input_digest,
             output_filename=output_filename,
             description=f"Packaging makeself archive: {field_set.address}",

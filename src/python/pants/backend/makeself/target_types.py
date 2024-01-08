@@ -7,6 +7,7 @@ from pants.engine.target import (
     AsyncFieldMixin,
     SpecialCasedDependencies,
     StringField,
+    StringSequenceField,
     Target,
 )
 from pants.util.docutil import bin_name
@@ -23,22 +24,14 @@ class MakeselfArthiveLabel(StringField):
     )
 
 
-class MakeselfArchiveStartupScript(StringField, AsyncFieldMixin):
+class MakeselfArchiveStartupScript(StringSequenceField):
     alias = "startup_script"
     help = help_text(
         """
         The startup script, i.e. what gets run when executing `./my_archive.run`, must be set
-        to an address of shell source.
+        to a shell script, for example, `"./src/run.sh"`.
         """
     )
-
-    def to_unparsed_address_inputs(self) -> UnparsedAddressInputs:
-        assert self.value
-        return UnparsedAddressInputs(
-            [self.value],
-            owning_address=self.address,
-            description_of_origin=f"the `{MakeselfArchiveStartupScript.alias}` from the target {self.address}",
-        )
 
 
 class MakeselfArchiveFilesField(SpecialCasedDependencies):
