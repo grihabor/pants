@@ -17,6 +17,14 @@ from pants.option.options import Options
 from pants.option.options_bootstrapper import OptionsBootstrapper
 from pants.util.frozendict import FrozenDict
 from pants.vcs.changed import ChangedAddresses, ChangedOptions, ChangedRequest
+from pants.vcs.changed_address_specs import (
+    AllChangedAddressLiteralSpecs,
+    AllChangedAddressLiteralSpecsRequest,
+)
+from pants.vcs.changed_file_specs import (
+    AllChangedFileLiteralSpecs,
+    AllChangedFileLiteralSpecsRequest,
+)
 from pants.vcs.git import GitWorktreeRequest, MaybeGitWorktree
 
 logger = logging.getLogger(__name__)
@@ -68,53 +76,47 @@ def calculate_specs(
             "The `--changed-*` options are only available if Git is used for the repository."
         )
 
-    changed_files = tuple(changed_options.changed_files(maybe_git_worktree.git_worktree))
-    files_with_line_numbers = changed_options.files_with_line_numbers or []
-    file_literal_specs = tuple(
-        FileLiteralSpec(f) for f in changed_files if f not in files_with_line_numbers
-    )
-
-    if changed_options.files_with_line_numbers:
-        diff_hunks = changed_options.diff_hunks(maybe_git_worktree.git_worktree)
-    else:
-        diff_hunks = None
-
-    changed_request = ChangedRequest(
-        sources=changed_files,
-        dependents=changed_options.dependents,
-        files_with_line_numbers=tuple(changed_options.files_with_line_numbers),
-        diff_hunks=FrozenDict(diff_hunks),
-    )
-    (changed_addresses,) = session.product_request(
-        ChangedAddresses,
-        [Params(changed_request, options_bootstrapper, bootstrap_environment)],
-    )
-    logger.debug("changed addresses: %s", changed_addresses)
-
-    address_literal_specs = []
-    for address in cast(ChangedAddresses, changed_addresses):
-        address_input = AddressInput.parse(address.spec, description_of_origin="`--changed-since`")
-        address_literal_specs.append(
-            AddressLiteralSpec(
-                path_component=address_input.path_component,
-                target_component=address_input.target_component,
-                generated_component=address_input.generated_component,
-                parameters=FrozenDict(address_input.parameters),
+    (file_literal_specs,) = session.product_request(
+        AllChangedFileLiteralSpecs,
+        [
+            Params(
+                AllChangedFileLiteralSpecsRequest(
+                    changed_options,
+                ),
+                git_binary,
+                bootstrap_environment,
             )
-        )
-
+        ],
+    )
+    (address_literal_specs,) = session.product_request(
+        AllChangedAddressLiteralSpecs,
+        [
+            Params(
+                AllChangedAddressLiteralSpecsRequest(
+                    changed_options,
+                    maybe_git_worktree.git_worktree,
+                ),
+                options_bootstrapper,
+                bootstrap_environment,
+            )
+        ],
+    )
     return Specs(
         includes=RawSpecs(
             # We need both address_literals and file_literals to cover all our edge cases, including
             # target-aware vs. target-less goals, e.g. `list` vs `count-loc`.
-            address_literals=tuple(address_literal_specs),
-            file_literals=file_literal_specs,
+            address_literals=address_literal_specs.includes,
+            file_literals=file_literal_specs.includes,
             unmatched_glob_behavior=unmatched_cli_globs,
             filter_by_global_options=True,
             from_change_detection=True,
             description_of_origin="`--changed-since`",
         ),
-        ignores=RawSpecs(description_of_origin="`--changed-since`"),
+        ignores=RawSpecs(
+            address_literals=address_literal_specs.excludes,
+            file_literals=file_literal_specs.excludes,
+            description_of_origin="`--changed-since`",
+        ),
     )
 
 
@@ -123,4 +125,5 @@ def rules():
         QueryRule(ChangedAddresses, [ChangedRequest, EnvironmentName]),
         QueryRule(GitBinary, [EnvironmentName]),
         QueryRule(MaybeGitWorktree, [GitWorktreeRequest, GitBinary, EnvironmentName]),
+        QueryRule(AllChangedFileLiteralSpecs, [AllChangedFileLiteralSpecsRequest, GitBinary, EnvironmentName]),
     ]

@@ -54,6 +54,7 @@ from pants.util.docutil import bin_name
 from pants.util.logging import LogLevel
 from pants.util.ordered_set import FrozenOrderedSet
 from pants.util.strutil import softwrap
+from pants.vcs import changed_address_specs, changed_file_specs
 from pants.vcs.changed import rules as changed_rules
 from pants.vcs.git import rules as git_rules
 
@@ -290,6 +291,8 @@ class EngineInitializer:
                 *system_binaries.rules(),
                 *platform_rules.rules(),
                 *changed_rules(),
+                *changed_file_specs.rules(),
+                *changed_address_specs.rules(),
                 *streaming_workunit_handler_rules(),
                 *specs_calculator.rules(),
                 *synthetic_targets.rules(),

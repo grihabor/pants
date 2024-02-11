@@ -20,7 +20,6 @@ from pants.option.option_types import EnumOption, StrListOption, StrOption
 from pants.option.option_value_container import OptionValueContainer
 from pants.option.subsystem import Subsystem
 from pants.util.docutil import doc_url
-from pants.util.frozendict import FrozenDict
 from pants.util.ordered_set import FrozenOrderedSet
 from pants.util.strutil import help_text
 from pants.vcs.git import GitWorktree
@@ -37,8 +36,6 @@ class DependentsOption(Enum):
 class ChangedRequest:
     sources: tuple[str, ...]
     dependents: DependentsOption
-    files_with_line_numbers: tuple[str, ...]
-    diff_hunks: FrozenDict[str, Hunk]
 
 
 class ChangedAddresses(Collection[Address]):
@@ -112,7 +109,7 @@ class ChangedOptions:
 
     since: str | None
     diffspec: str | None
-    files_with_line_numbers: list[str] | None
+    files_with_line_numbers: tuple[str] | None
     dependents: DependentsOption
 
     @classmethod
@@ -125,7 +122,7 @@ class ChangedOptions:
             old_container=options,
             new_container=options,
         )
-        return cls(options.since, options.diffspec, options.line_numbers, dependents)
+        return cls(options.since, options.diffspec, tuple(options.line_numbers), dependents)
 
     @property
     def provided(self) -> bool:
