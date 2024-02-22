@@ -90,3 +90,65 @@ def test_docker_build_multi_layer(rule_runner: RuleRunner) -> None:
     assert "Built docker image: test-image:1.0" == result.artifacts[0].extra_log_lines[0]
     assert "Docker image ID:" in result.artifacts[0].extra_log_lines[1]
     assert "<unknown>" not in result.artifacts[0].extra_log_lines[1]
+
+
+def test_docker_build_multi_layer_2(rule_runner: RuleRunner) -> None:
+    rule_runner.write_files(
+        {
+            "src/BUILD": dedent(
+                """\
+                docker_image(name='test-image', image_tags=['1.0'])
+                docker_image(name='base', source='Dockerfile.base')
+                """
+            ),
+            "src/Dockerfile": dedent(
+                """\
+                ARG ONE=python:3.8
+                ARG BASE=src:base
+                FROM $ONE
+                FROM $BASE
+                """
+            ),
+            "src/Dockerfile.base": "FROM python:3.8",
+        }
+    )
+    target = rule_runner.get_target(Address("src", target_name="test-image"))
+    result = run_docker(rule_runner, target)
+    assert len(result.artifacts) == 1
+    assert len(result.artifacts[0].extra_log_lines) == 2
+    assert "Built docker image: test-image:1.0" == result.artifacts[0].extra_log_lines[0]
+    assert "Docker image ID:" in result.artifacts[0].extra_log_lines[1]
+    assert "<unknown>" not in result.artifacts[0].extra_log_lines[1]
+
+
+def test_docker_build_multi_layer_3(rule_runner: RuleRunner) -> None:
+    rule_runner.write_files(
+        {
+            "src/BUILD": dedent(
+                """\
+                docker_image(name='test-image', image_tags=['1.0'])
+                docker_image(name='base', source='Dockerfile.base')
+                """
+            ),
+            "src/Dockerfile": dedent(
+                """\
+                ARG ONE=python:3.8
+                ARG TWO=python:3.8
+                ARG BASE=x/src:base
+                ARG BASE2=x/src:base
+                FROM $ONE as one
+                FROM $BASE as base
+                FROM $BASE2 as base2
+                FROM $TWO as two
+                """
+            ),
+            "src/x/Dockerfile.base": "FROM python:3.8",
+        }
+    )
+    target = rule_runner.get_target(Address("src", target_name="test-image"))
+    result = run_docker(rule_runner, target)
+    assert len(result.artifacts) == 1
+    assert len(result.artifacts[0].extra_log_lines) == 2
+    assert "Built docker image: test-image:1.0" == result.artifacts[0].extra_log_lines[0]
+    assert "Docker image ID:" in result.artifacts[0].extra_log_lines[1]
+    assert "<unknown>" not in result.artifacts[0].extra_log_lines[1]
