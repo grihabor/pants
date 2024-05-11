@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 import signal
 import sys
 import time
 import traceback
 from abc import ABCMeta
 from hashlib import sha256
-from typing import Callable, cast
+from typing import Callable, Optional, cast
 
 import psutil
 
@@ -559,4 +560,27 @@ class PantsDaemonProcessManager(ProcessManager, metaclass=ABCMeta):
         logger.debug(f"pantsd command is: {spawn_control_env_vars} {cmd_line}")
 
         # TODO: Improve error handling on launch failures.
-        os.spawnve(os.P_NOWAIT, sys.executable, cmd, env=exec_env)
+
+        shebang = _maybe_read_shebang(sys.argv[0])
+
+        if shebang is None:
+            os.spawnve(os.P_NOWAIT, sys.executable, cmd, env=exec_env)
+        else:
+            os.spawnve(os.P_NOWAIT, shebang, cmd, env=exec_env)
+
+
+def _maybe_read_shebang(path: str) -> Optional[str]:
+    with open(sys.argv[0], "rb") as f:
+        two_bytes = f.read(2)
+        if two_bytes != b"#!":
+            return None
+
+        line = f.readline().decode("utf-8").strip()
+
+    args = shlex.split(line)
+    if len(args) > 1:
+        raise RuntimeError(
+            f"Only simple shebang of 1 binary is supported in pants script, got: {args}"
+        )
+
+    return args[0]
