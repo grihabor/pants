@@ -12,7 +12,7 @@ import time
 import traceback
 from abc import ABCMeta
 from hashlib import sha256
-from typing import Callable, Optional, cast
+from typing import Callable, List, Optional, cast
 
 import psutil
 
@@ -567,22 +567,17 @@ class PantsDaemonProcessManager(ProcessManager, metaclass=ABCMeta):
             logger.debug(f"running spawnve: {sys.executable} {cmd}")
             os.spawnve(os.P_NOWAIT, sys.executable, cmd, env=exec_env)
         else:
-            logger.debug(f"running spawnve: {shebang} {cmd}")
-            os.spawnve(os.P_NOWAIT, shebang, cmd, env=exec_env)
+            exe, args = shebang[0], [*shebang[1:], *sys.argv]
+            logger.debug(f"running spawnve: {exe} {args}")
+            os.spawnve(os.P_NOWAIT, exe, args, env=exec_env)
 
 
-def _maybe_read_shebang(path: str) -> Optional[str]:
+def _maybe_read_shebang(path: str) -> List[str]:
     with open(sys.argv[0], "rb") as f:
         two_bytes = f.read(2)
         if two_bytes != b"#!":
-            return None
+            return []
 
         line = f.readline().decode("utf-8").strip()
 
-    args = shlex.split(line)
-    if len(args) > 1:
-        raise RuntimeError(
-            f"Only simple shebang of 1 binary is supported in pants script, got: {args}"
-        )
-
-    return args[0]
+    return shlex.split(line)
