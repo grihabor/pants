@@ -5,14 +5,13 @@ from __future__ import annotations
 
 import logging
 import os
-import shlex
 import signal
 import sys
 import time
 import traceback
 from abc import ABCMeta
 from hashlib import sha256
-from typing import Callable, List, Optional, cast
+from typing import Callable, cast
 
 import psutil
 
@@ -561,6 +560,10 @@ class PantsDaemonProcessManager(ProcessManager, metaclass=ABCMeta):
 
         # TODO: Improve error handling on launch failures.
 
+        #############
+        # nix patch #
+        #############
+
         shebang = _maybe_read_shebang(sys.argv[0])
 
         if shebang is None:
@@ -581,3 +584,8 @@ def _maybe_read_shebang(path: str) -> List[str]:
         line = f.readline().decode("utf-8").strip()
 
     return shlex.split(line)
+
+
+# The imports are intentionally at the bottom to reduce the chance of failed patch.
+import shlex
+from typing import List
