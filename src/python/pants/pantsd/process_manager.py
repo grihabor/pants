@@ -564,8 +564,10 @@ class PantsDaemonProcessManager(ProcessManager, metaclass=ABCMeta):
         shebang = _maybe_read_shebang(sys.argv[0])
 
         if shebang is None:
+            logger.debug(f"running spawnve: {sys.executable} {cmd}")
             os.spawnve(os.P_NOWAIT, sys.executable, cmd, env=exec_env)
         else:
+            logger.debug(f"running spawnve: {shebang} {cmd}")
             os.spawnve(os.P_NOWAIT, shebang, cmd, env=exec_env)
 
 
