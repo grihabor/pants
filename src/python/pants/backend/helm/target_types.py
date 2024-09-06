@@ -6,11 +6,14 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+import json
+import copy
+from typing import Any, Dict, Optional, cast
 from pants.backend.helm.resolve.remotes import ALL_DEFAULT_HELM_REGISTRIES
 from pants.base.glob_match_error_behavior import GlobMatchErrorBehavior
 from pants.core.goals.package import OutputPathField
 from pants.core.goals.test import TestTimeoutField
-from pants.engine.internals.native_engine import AddressInput
+from pants.engine.internals.native_engine import Address, AddressInput
 from pants.engine.rules import collect_rules, rule
 from pants.engine.target import (
     COMMON_TARGET_FIELDS,
@@ -24,6 +27,7 @@ from pants.engine.target import (
     IntField,
     MultipleSourcesField,
     OverridesField,
+    ScalarField,
     SingleSourceField,
     SpecialCasedDependencies,
     StringField,
@@ -107,16 +111,58 @@ class HelmSkipPushField(BoolField):
 # `helm_chart` target
 # -----------------------------------------------------------------------------------------------
 
+class HelmChartMeta:
+    """Represents a helm chart metadata stored in Chart.yaml."""
 
-class HelmChartMetaSourceField(SingleSourceField):
-    alias = "chart"
-    default = "Chart.yaml"
-    expected_file_extensions = (
-        ".yaml",
-        ".yml",
+    def __init__(self, **kwargs) -> None:
+        """
+        :param kwargs: Serialized to `Chart.yaml
+          <https://helm.sh/docs/topics/charts/#the-chartyaml-file>`_.
+        """
+
+        self._kw: Dict[str, Any] = copy.deepcopy(kwargs)
+        # The kwargs come from a BUILD file, and can contain somewhat arbitrary nested structures,
+        # so we don't have a principled way to make them into a hashable data structure.
+        # E.g., we can't naively turn all lists into tuples because distutils checks that some
+        # fields (such as ext_modules) are lists, and doesn't accept tuples.
+        # Instead we stringify and precompute a hash to use in our own __hash__, since we know
+        # that this object is immutable.
+        self._hash: int = hash(json.dumps(kwargs, sort_keys=True))
+
+    @property
+    def kwargs(self) -> Dict[str, Any]:
+        return self._kw
+
+    def asdict(self) -> Dict[str, Any]:
+        return self.kwargs
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, HelmChartMeta):
+            return False
+        return self._kw == other._kw
+
+    def __hash__(self) -> int:
+        return self._hash
+
+
+class HelmChartProvidesField(ScalarField, AsyncFieldMixin):
+    alias = "provides"
+    expected_type = HelmChartMeta
+    expected_type_help = "helm_chart_meta(name='my-chart', **kwargs)"
+    value: HelmChartMeta
+    required = True
+    help = help_text(
+        f"""
+        The Chart.yaml kwargs for the external artifact built from this target.
+
+        You must define `name`. You can also set almost any keyword argument accepted by `Chart.yaml`:
+        (https://helm.sh/docs/topics/charts/#the-chartyaml-file).
+        """
     )
-    required = False
-    help = "The chart definition file."
+
+    @classmethod
+    def compute_value(cls, raw_value: Optional[HelmChartMeta], address: Address) -> HelmChartMeta:
+        return cast(HelmChartMeta, super().compute_value(raw_value, address))
 
 
 class HelmChartSourcesField(MultipleSourcesField):
@@ -206,7 +252,7 @@ class HelmChartTarget(Target):
     alias = "helm_chart"
     core_fields = (
         *COMMON_TARGET_FIELDS,
-        HelmChartMetaSourceField,
+        HelmChartProvidesField,
         HelmChartSourcesField,
         HelmChartDependenciesField,
         HelmChartOutputPathField,
@@ -224,11 +270,11 @@ class HelmChartTarget(Target):
 @dataclass(frozen=True)
 class HelmChartFieldSet(FieldSet):
     required_fields = (
-        HelmChartMetaSourceField,
+        HelmChartProvidesField,
         HelmChartSourcesField,
     )
 
-    chart: HelmChartMetaSourceField
+    chart: HelmChartProvidesField
     sources: HelmChartSourcesField
     dependencies: HelmChartDependenciesField
     description: DescriptionField
