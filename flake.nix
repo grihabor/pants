@@ -18,7 +18,7 @@
   in {
     devShells."x86_64-linux".default = pkgs.mkShell rec {
       packages = [
-        pants-nix.packages."x86_64-linux"."release_2.21.0"
+        pants-nix.packages."x86_64-linux"."release_2.22.0"
         pkgs.python3Packages.fastapi
         pkgs.python3Packages.strawberry-graphql
         pkgs.python3Packages.uvicorn
