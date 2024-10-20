@@ -1,24 +1,31 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
-    pants-nix = {
-      url = "github:grihabor/pants-nix/main";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
   outputs = {
     self,
     nixpkgs,
-    pants-nix,
+    rust-overlay,
   }: let
     system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system};
+    pkgs = import nixpkgs {
+      inherit system;
+      overlays = [rust-overlay.overlays.default];
+    };
     lib = nixpkgs.lib;
+    rust-toolchain = builtins.fromTOML (builtins.readFile ./src/rust/engine/rust-toolchain);
+    rustVersion = rust-toolchain.toolchain.channel;
+    pants-bin = pkgs.callPackage ./pants.nix {
+      cargo = pkgs.rust-bin.stable.${rustVersion}.default;
+      rustc = pkgs.rust-bin.stable.${rustVersion}.default;
+    };
   in {
-    devShells."x86_64-linux".default = pkgs.mkShell rec {
+    packages.${system}.default = pants-bin;
+    devShells.${system}.default = pkgs.mkShell rec {
       packages = [
-        pants-nix.packages."x86_64-linux"."release_2.22.0"
+        pants-bin
         pkgs.python3Packages.fastapi
         pkgs.python3Packages.strawberry-graphql
         pkgs.python3Packages.uvicorn
