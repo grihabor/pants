@@ -1,4 +1,5 @@
 {
+  callPackage,
   lib,
   python3,
   stdenv,
@@ -66,6 +67,8 @@
       cp target/release/pants $out/bin/native_client
     '';
   };
+  hatchlingCustom = callPackage ./nix/hatchling.nix {};
+  pexCustom = callPackage ./nix/pex.nix {hatchling = hatchlingCustom;};
 in
   with python.pkgs;
     buildPythonApplication {
@@ -86,7 +89,7 @@ in
         ijson
         node-semver
         packaging
-        pex
+        pexCustom
         psutil
         pytest
         python-lsp-jsonrpc

@@ -14,7 +14,6 @@
       inherit system;
       overlays = [
         rust-overlay.overlays.default
-        (import ./nix/hatchling.nix)
       ];
     };
     lib = nixpkgs.lib;
