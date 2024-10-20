@@ -81,7 +81,7 @@
   };
   hatchling = pythonPackages.callPackage ./nix/hatchling.nix {};
   pex = pythonPackages.callPackage ./nix/pex.nix {hatchling = hatchling;};
-  libcst = pythonPackages.callPackage ./nix/libcst.nix {hatchling = hatchling;};
+  libcst = pythonPackages.callPackage ./nix/libcst.nix {};
 in
   python.pkgs.buildPythonApplication {
     inherit version src;

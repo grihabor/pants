@@ -32,26 +32,17 @@ buildPythonPackage rec {
     owner = "instagram";
     repo = "libcst";
     rev = "refs/tags/v${version}";
-    hash = "sha256-kFs7edBWz0GRbgbLDmtpUVi5R+6mYXsJSvceOoPW9ck=";
+    hash = "sha256-1qAb6iS1iGoZLry/ZHzl/xvEJX0ouqVBL/3i61YEgac=";
   };
 
   cargoDeps = rustPlatform.fetchCargoTarball {
     inherit src;
     sourceRoot = "${src.name}/${cargoRoot}";
     name = "${pname}-${version}";
-    hash = "sha256-fhaHiz64NH6S61fSXj4gNxxcuB+ECxWSSmG5StiFr1k=";
+    hash = "sha256-IaxgjcFmgaeLHmIrVpzrJ/Ue1A9+PkFl9mV0G2HVQkI=";
   };
 
   cargoRoot = "native";
-
-  patches = [
-    # https://github.com/Instagram/LibCST/pull/1042
-    (fetchpatch {
-      name = "remove-distutils.patch";
-      url = "https://github.com/Instagram/LibCST/commit/a6834aa0e6eb78e41549fd1087d7ba60ca4dd237.patch";
-      hash = "sha256-lyIXJhm4UMwdCOso6McDslIvtK7Ar8sF5Zy7qo1nicQ=";
-    })
-  ];
 
   postPatch = ''
     # avoid infinite recursion by not formatting the release files
