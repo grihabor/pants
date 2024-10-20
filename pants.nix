@@ -1,4 +1,5 @@
 {
+  callPackage,
   lib,
   python3,
   python3Packages,
@@ -14,14 +15,24 @@
   rustPlatform = makeRustPlatform {
     inherit cargo rustc;
   };
+  rustSourceFiles = fs.gitTracked ./src/rust;
+  rustSrc = fs.toSource {
+    root = ./.;
+    fileset = fs.union rustSourceFiles ./src/python/pants/VERSION;
+  };
   sourceFiles = fs.gitTracked ./.;
   src = fs.toSource {
     root = ./.;
     fileset = sourceFiles;
   };
-  version = "0.1.0";
+  trimWith = callPackage ./nix/trimWith.nix {};
+  version = trimWith {
+    start = true;
+    end = true;
+  } (builtins.readFile ./src/python/pants/VERSION);
   pants-engine = stdenv.mkDerivation rec {
-    inherit src version;
+    inherit version;
+    src = rustSrc;
     pname = "pants-engine";
     cargoDeps = rustPlatform.importCargoLock {
       lockFile = ./src/rust/engine/Cargo.lock;
