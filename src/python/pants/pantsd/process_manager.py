@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import shlex
+from typing import List
 import logging
 import os
 import signal
@@ -171,9 +173,13 @@ class ProcessManager:
         Timeout()."""
 
         def file_waiter():
-            return os.path.exists(filename) and (not want_content or os.path.getsize(filename))
+            return os.path.exists(filename) and (
+                not want_content or os.path.getsize(filename)
+            )
 
-        return cls._deadline_until(file_waiter, ongoing_msg, completed_msg, timeout=timeout)
+        return cls._deadline_until(
+            file_waiter, ongoing_msg, completed_msg, timeout=timeout
+        )
 
     @classmethod
     def _get_metadata_dir_by_name(cls, name: str, metadata_base_dir: str) -> str:
@@ -188,7 +194,9 @@ class ProcessManager:
 
     @classmethod
     def metadata_file_path(cls, name, metadata_key, metadata_base_dir) -> str:
-        return os.path.join(cls._get_metadata_dir_by_name(name, metadata_base_dir), metadata_key)
+        return os.path.join(
+            cls._get_metadata_dir_by_name(name, metadata_base_dir), metadata_key
+        )
 
     def read_metadata_by_name(self, metadata_key, caster=None):
         """Read process metadata using a named identity.
@@ -214,7 +222,12 @@ class ProcessManager:
         safe_file_dump(file_path, metadata_value)
 
     def await_metadata_by_name(
-        self, metadata_key, ongoing_msg: str, completed_msg: str, timeout: float, caster=None
+        self,
+        metadata_key,
+        ongoing_msg: str,
+        completed_msg: str,
+        timeout: float,
+        caster=None,
     ):
         """Block up to a timeout for process metadata to arrive on disk.
 
@@ -390,7 +403,10 @@ class ProcessManager:
                 (process.status() == psutil.STATUS_ZOMBIE)
                 or
                 # Check for stale pids.
-                (self.process_name and self.process_name != self._get_process_name(process))
+                (
+                    self.process_name
+                    and self.process_name != self._get_process_name(process)
+                )
                 or
                 # Extended checking.
                 (extended_check and not extended_check(process))
@@ -407,7 +423,9 @@ class ProcessManager:
         :raises: `ProcessManager.MetadataError` when OSError is encountered on metadata dir removal.
         """
         if not force and self.is_alive():
-            raise ProcessManager.MetadataError("cannot purge metadata for a running process!")
+            raise ProcessManager.MetadataError(
+                "cannot purge metadata for a running process!"
+            )
 
         self.purge_metadata_by_name(self._name)
 
@@ -554,9 +572,34 @@ class PantsDaemonProcessManager(ProcessManager, metaclass=ABCMeta):
         # Pass all of sys.argv so that we can proxy arg flags e.g. `-ldebug`.
         cmd = [sys.executable] + sys.argv
 
-        spawn_control_env_vars = " ".join(f"{k}={v}" for k, v in spawn_control_env.items())
+        spawn_control_env_vars = " ".join(
+            f"{k}={v}" for k, v in spawn_control_env.items()
+        )
         cmd_line = " ".join(cmd)
         logger.debug(f"pantsd command is: {spawn_control_env_vars} {cmd_line}")
 
         # TODO: Improve error handling on launch failures.
-        os.spawnve(os.P_NOWAIT, sys.executable, cmd, env=exec_env)
+
+        # Check for a shebang. If there is a shebang, then the user has wrapped
+        # the pants executable in a shell script. This approach is used in
+        # Nixos.
+        shebang = _maybe_read_shebang(sys.argv[0])
+
+        if shebang is None:
+            logger.debug(f"running spawnve: {sys.executable} {cmd}")
+            os.spawnve(os.P_NOWAIT, sys.executable, cmd, env=exec_env)
+        else:
+            exe, args = shebang[0], [*shebang[1:], *sys.argv]
+            logger.debug(f"running spawnve: {exe} {args}")
+            os.spawnve(os.P_NOWAIT, exe, args, env=exec_env)
+
+
+def _maybe_read_shebang(path: str) -> List[str]:
+    with open(sys.argv[0], "rb") as f:
+        two_bytes = f.read(2)
+        if two_bytes != b"#!":
+            return []
+
+        line = f.readline().decode("utf-8").strip()
+
+    return shlex.split(line)
