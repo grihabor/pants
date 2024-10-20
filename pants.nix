@@ -136,7 +136,7 @@ in
         [project]
         name = "pants"
         version = "$version"
-        requires-python = ">=3.8.*"
+        requires-python = ">= 3.8"
         dependencies = [
           "packaging",
         ]
