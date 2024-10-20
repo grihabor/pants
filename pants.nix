@@ -1,12 +1,9 @@
 {
   lib,
-  fetchFromGitHub,
   python3,
   stdenv,
   protobuf,
-  rust-bin,
   makeRustPlatform,
-  rustVersion,
   rustc,
   cargo,
 }: let
