@@ -12,7 +12,11 @@
   rustPlatform = makeRustPlatform {
     inherit cargo rustc;
   };
-  src = fs.gitTracked ./.;
+  sourceFiles = fs.gitTracked ./.;
+  src = fs.toSource {
+    root = ./.;
+    fileset = sourceFiles;
+  };
   version = "0.1.0";
   pants-engine = stdenv.mkDerivation rec {
     inherit src version;
@@ -32,7 +36,7 @@
       };
     };
 
-    sourceRoot = "src/rust/engine";
+    sourceRoot = "${src.name}/src/rust/engine";
 
     nativeBuildInputs = [
       python
