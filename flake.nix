@@ -12,7 +12,10 @@
     system = "x86_64-linux";
     pkgs = import nixpkgs {
       inherit system;
-      overlays = [rust-overlay.overlays.default];
+      overlays = [
+        rust-overlay.overlays.default
+        (import ./nix/hatchling.nix {})
+      ];
     };
     lib = nixpkgs.lib;
     rust-toolchain = builtins.fromTOML (builtins.readFile ./src/rust/engine/rust-toolchain);

@@ -151,11 +151,6 @@ in
         find src/python -type d -exec bash -c "if [ -n \"$ls {}/*.py\" ]; then touch {}/__init__.py; fi" \;
       '';
 
-      prePatch =
-        lib.strings.concatMapStrings
-        (patch_path: "patch -p1 --batch -u -i ${./patch-process-manager.txt}")
-        patches;
-
       preBuild = ''
 
         # https://github.com/pantsbuild/pants/blob/release_2.20.0/src/python/pants/engine/internals/BUILD#L28
