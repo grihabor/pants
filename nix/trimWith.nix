@@ -1,3 +1,7 @@
+# Copied from unstable nixpkgs:
+# https://github.com/NixOS/nixpkgs/blob/17c2b8e1dca2129638f4c38a579ef869786e22ff/lib/strings.nix#L406
+#
+# TODO remove once we switch to the next major nixpkgs version.
 {lib}: let
   trimWith = {
     start ? false,
