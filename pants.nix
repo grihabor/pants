@@ -79,21 +79,22 @@
       cp target/release/pants $out/bin/native_client
     '';
   };
-  hatchlingCustom = pythonPackages.callPackage ./nix/hatchling.nix {};
-  pexCustom = pythonPackages.callPackage ./nix/pex.nix {hatchling = hatchlingCustom;};
+  hatchling = pythonPackages.callPackage ./nix/hatchling.nix {};
+  pex = pythonPackages.callPackage ./nix/pex.nix {hatchling = hatchling;};
+  libcst = pythonPackages.callPackage ./nix/libcst.nix {hatchling = hatchling;};
 in
-  with python.pkgs;
-    buildPythonApplication {
-      inherit version src;
-      pname = "pants";
-      pyproject = true;
+  python.pkgs.buildPythonApplication {
+    inherit version src;
+    pname = "pants";
+    pyproject = true;
 
-      buildInputs = [
-        setuptools
-      ];
+    buildInputs = [
+      python.pkgs.setuptools
+    ];
 
-      # curl -L -O https://raw.githubusercontent.com/pantsbuild/pants/release_2.20.0/3rdparty/python/requirements.txt
-      propagatedBuildInputs = [
+    # curl -L -O https://raw.githubusercontent.com/pantsbuild/pants/release_2.20.0/3rdparty/python/requirements.txt
+    propagatedBuildInputs =
+      (with python.pkgs; [
         ansicolors
         chevron
         fasteners
@@ -101,7 +102,6 @@ in
         ijson
         node-semver
         packaging
-        pexCustom
         psutil
         pytest
         python-lsp-jsonrpc
@@ -116,68 +116,72 @@ in
         types-setuptools
         types-toml
         typing-extensions
+      ])
+      ++ [
+        pex
+        libcst
       ];
 
-      # https://github.com/pantsbuild/pants/blob/release_2.20.0/src/python/pants/BUILD#L27-L39
-      configurePhase = ''
-        cat > setup.py << EOF
-        from setuptools import setup, Extension
+    # https://github.com/pantsbuild/pants/blob/release_2.20.0/src/python/pants/BUILD#L27-L39
+    configurePhase = ''
+      cat > setup.py << EOF
+      from setuptools import setup, Extension
 
-        setup(
-            ext_modules=[Extension(name="dummy_twAH5rHkMN", sources=[])],
-        )
-        EOF
+      setup(
+          ext_modules=[Extension(name="dummy_twAH5rHkMN", sources=[])],
+      )
+      EOF
 
-        cat > pyproject.toml << EOF
-        [build-system]
-        requires = ["setuptools"]
-        build-backend = "setuptools.build_meta"
+      cat > pyproject.toml << EOF
+      [build-system]
+      requires = ["setuptools"]
+      build-backend = "setuptools.build_meta"
 
-        [project]
-        name = "pants"
-        version = "$version"
-        requires-python = ">= 3.8"
-        dependencies = [
-          "packaging",
-        ]
+      [project]
+      name = "pants"
+      version = "$version"
+      requires-python = ">= 3.8"
+      dependencies = [
+        "packaging",
+      ]
 
-        [tool.setuptools]
-        include-package-data = true
+      [tool.setuptools]
+      include-package-data = true
 
-        [tool.setuptools.packages.find]
-        where = ["src/python"]
-        include = ["pants", "pants.*"]
-        namespaces = false
+      [tool.setuptools.packages.find]
+      where = ["src/python"]
+      include = ["pants", "pants.*"]
+      namespaces = false
 
-        [project.scripts]
-        pants = "pants.bin.pants_loader:main"
+      [project.scripts]
+      pants = "pants.bin.pants_loader:main"
 
-        EOF
+      EOF
 
-        echo ${version} > src/python/pants/_version/VERSION
+      echo ${version} > src/python/pants/_version/VERSION
 
-        cat > MANIFEST.in << EOF
-        include src/python/pants/_version/VERSION
-        include src/python/pants/engine/internals/native_engine.so
-        include src/python/pants/bin/native_client
-        recursive-include src/python/pants *.lock *.java *.scala *.lockfile.txt
-        EOF
+      cat > MANIFEST.in << EOF
+      include src/python/pants/_version/VERSION
+      include src/python/pants/engine/internals/native_engine.so
+      include src/python/pants/bin/native_client
+      recursive-include src/python/pants *.lock *.java *.scala *.lockfile.txt
+      EOF
 
-        find src/python -type d -exec bash -c "if [ -n \"$ls {}/*.py\" ]; then touch {}/__init__.py; fi" \;
-      '';
+      find src/python -type d -exec bash -c "if [ -n \"$ls {}/*.py\" ]; then touch {}/__init__.py; fi" \;
+    '';
 
-      preBuild = ''
+    preBuild = ''
 
-        # https://github.com/pantsbuild/pants/blob/release_2.20.0/src/python/pants/engine/internals/BUILD#L28
-        cp ${pants-engine}/lib/native_engine.so src/python/pants/engine/internals/
+      # https://github.com/pantsbuild/pants/blob/release_2.20.0/src/python/pants/engine/internals/BUILD#L28
+      cp ${pants-engine}/lib/native_engine.so src/python/pants/engine/internals/
 
-        # https://github.com/pantsbuild/pants/blob/release_2.20.0/build-support/bin/rust/bootstrap_code.sh#L34
-        cp ${pants-engine}/bin/native_client src/python/pants/bin/
-      '';
+      # https://github.com/pantsbuild/pants/blob/release_2.20.0/build-support/bin/rust/bootstrap_code.sh#L34
+      cp ${pants-engine}/bin/native_client src/python/pants/bin/
+    '';
 
-      postInstall = ''
-        wrapProgram "$out/bin/pants" \
-          --set NO_SCIE_WARNING 1 \
-          --run "if [ -f .pants.bootstrap ]; then . .pants.bootstrap; fi"
-      '';
-    }
+    postInstall = ''
+      wrapProgram "$out/bin/pants" \
+        --set NO_SCIE_WARNING 1 \
+        --run "if [ -f .pants.bootstrap ]; then . .pants.bootstrap; fi"
+    '';
+  }
