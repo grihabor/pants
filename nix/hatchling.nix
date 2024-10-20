@@ -2,6 +2,8 @@
 # > ERROR Missing dependencies:
 # >        hatchling<1.22.0
 #
+# TODO remove the file once pex upgrades to a newer version of hatchling.
+#
 # The package was copied from nixpkgs:
 # https://raw.githubusercontent.com/NixOS/nixpkgs/7f1305d3d2666813654c14e0b7bb97d65d5602e0/pkgs/development/python-modules/hatchling/default.nix
 { lib

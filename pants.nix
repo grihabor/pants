@@ -1,7 +1,7 @@
 {
-  callPackage,
   lib,
   python3,
+  python3Packages,
   stdenv,
   protobuf,
   makeRustPlatform,
@@ -10,6 +10,7 @@
 }: let
   fs = lib.fileset;
   python = python3;
+  pythonPackages = python3Packages;
   rustPlatform = makeRustPlatform {
     inherit cargo rustc;
   };
@@ -67,8 +68,8 @@
       cp target/release/pants $out/bin/native_client
     '';
   };
-  hatchlingCustom = callPackage ./nix/hatchling.nix {};
-  pexCustom = callPackage ./nix/pex.nix {hatchling = hatchlingCustom;};
+  hatchlingCustom = pythonPackages.callPackage ./nix/hatchling.nix {};
+  pexCustom = pythonPackages.callPackage ./nix/pex.nix {hatchling = hatchlingCustom;};
 in
   with python.pkgs;
     buildPythonApplication {
