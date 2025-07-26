@@ -16,15 +16,7 @@ from pants.core.util_rules.external_tool import TemplatedExternalTool
 from pants.engine.platform import Platform
 from pants.engine.rules import collect_rules
 from pants.engine.unions import UnionRule
-from pants.option.option_types import (
-    ArgsListOption,
-    BoolOption,
-    FileOption,
-    SkipOption,
-    StrListOption,
-    StrOption,
-)
-from pants.util.docutil import doc_url
+from pants.option.option_types import ArgsListOption, BoolOption, FileOption, SkipOption
 from pants.util.strutil import softwrap
 
 
@@ -45,8 +37,20 @@ class Ruff(TemplatedExternalTool):
     name = "Ruff"
     help = "The Ruff Python formatter (https://github.com/astral-sh/ruff)."
 
-    default_version = "0.9.10"
+    default_version = "0.11.5"
     default_known_versions = [
+        "0.11.5|macos_x86_64|c28725c6421d5834b2cd16c7b13c3831b3363d6d558448d7dd3e0aa695551f94|10882726",
+        "0.11.5|macos_arm64|4a5b1a44412bda817debb67d826a565f11b235744870b509f44102403a3a9e89|10228748",
+        "0.11.5|linux_x86_64|067c1c6c4d6033b65fe788f5310075686110b286a102431fb19883c079e2fca1|11413549",
+        "0.11.5|linux_arm64|77c11c7a70d3bf499915bab5a7691e955f4127164c4cfb7ef4e0773892ed2509|10318966",
+        "0.11.0|macos_x86_64|a208dee9c1a7a063dace746836fd2d7e5f7694d2142700d3964fccf141ada555|10861900",
+        "0.11.0|macos_arm64|09ea313f2aab3844432b46c6c5e3e066b26ae4953f4bac1e545176e5dea22306|10239274",
+        "0.11.0|linux_x86_64|3148cd8131ec4f525551b16a57186f5533c705950269cbee7674d484ca6eefe5|11412993",
+        "0.11.0|linux_arm64|60904d6d51b1a8dd49ab948dd1de33ce439ca872c82faa5dab90fce838539317|10313237",
+        "0.10.0|macos_x86_64|2388af7881c7e50026388e953fa6eab7c1ae94c868926a6185c3cb38f9f15aa2|10862770",
+        "0.10.0|macos_arm64|1da279b8302cd86f50d38fc8ad62cd12f4d07c0c402c13a3bac7dc244c7db138|10224628",
+        "0.10.0|linux_x86_64|5e949f667a1dd76ab4382ba713fed3390ddc6088147ba0eb70fd8aa2ec564751|11399512",
+        "0.10.0|linux_arm64|7b9fe2e2cecde897fb35a1a0bb1ccd10dde3395acd81aea7e5e6b0b24824e7c7|10305951",
         "0.9.10|macos_x86_64|1e5080489fdf483e7111bb1575f045ec13da2fdbfc6ac5fd58b5d55cf9cd7668|10838186",
         "0.9.10|macos_arm64|1fccbd53431eaa596f2322494edbdc444f99db651566188fa0a9820c26bbef77|10147621",
         "0.9.10|linux_x86_64|15e93ee078beb5ec24d1afb02a1cce2a873ac627d378c987adda4f6ab3b5f886|11373081",
@@ -55,6 +59,10 @@ class Ruff(TemplatedExternalTool):
         "0.9.6|macos_arm64|a3132eb5e3d95f36d378144082276fbed0309789dadb19d8a4c41ec5e80451fb|11124436",
         "0.9.6|linux_x86_64|c725f57aa11d636f1d7f0f378c604d4db29c4dbb5ff0578f9fbbc578364875df|12568611",
         "0.9.6|linux_arm64|8f64e97deae1c12f659fd13e6e14d78cf15ed876d1548ac76b235f78ab5803e1|11929444",
+        "0.8.6|macos_x86_64|3ff48d180472a1aee6385ba43606ba6a5a6ab89f16a3ca8ccb234966fe3698c1|10374010",
+        "0.8.6|macos_arm64|d24cfe247de2bfd90d7f0604196247b680e1db5b6c8427cf6e540c38044526f7|10005432",
+        "0.8.6|linux_x86_64|a691c78f045f7202b15620939c4b087f301afe884e42d09a19725f61581aa887|11329234",
+        "0.8.6|linux_arm64|23c5d1dd7eed23d2bd6d340df05a068030e267db28150892a72e3dc97b175164|10868993",
         "0.7.2|macos_x86_64|5815756947d0a7b1d90805b07ffb2c376c8a9800e9462d545839dc0d79a091d2|10162492",
         "0.7.2|macos_arm64|1c9f5a4fc815330d01fd8a56a7a70114ff3ed149bd997ff831524313705ba991|9802953",
         "0.7.2|linux_x86_64|b769e11a3e23a72692cb97ed762ff28e48534972a8ef447fd5b0d3178a56ffd8|11097578",
@@ -152,47 +160,6 @@ class Ruff(TemplatedExternalTool):
             check_existence=[os.path.join(d, "ruff.toml") for d in all_dirs],
             check_content={os.path.join(d, "pyproject.toml"): b"[tool.ruff" for d in all_dirs},
         )
-
-    _removal_hint = f"NOW IGNORED: use `version` and `known_versions` options to customise the version of ruff, replacing this option; consider deleting the resolve and `python_requirement` if no longer used. See {doc_url('reference/subsystems/ruff')}"
-
-    # Options that only exist to ease the upgrade from Ruff as a Python tool to Ruff as an external
-    # downloaded one
-    install_from_resolve = StrOption(
-        advanced=True,
-        default=None,
-        removal_version="2.27.0.dev0",
-        removal_hint=_removal_hint,
-        help="Formerly used to customise the version of Ruff to install.",
-    )
-
-    requirements = StrListOption(
-        advanced=True,
-        default=None,
-        removal_version="2.27.0.dev0",
-        removal_hint=_removal_hint,
-        help="Formerly used to customise the version of Ruff to install.",
-    )
-    interpreter_constraints = StrListOption(
-        advanced=True,
-        default=None,
-        removal_version="2.27.0.dev0",
-        removal_hint=_removal_hint,
-        help="Formerly used to customise the version of Ruff to install.",
-    )
-    console_script = StrOption(
-        advanced=True,
-        default=None,
-        removal_version="2.27.0.dev0",
-        removal_hint=_removal_hint,
-        help="Formerly used to customise the version of Ruff to install.",
-    )
-    entry_point = StrOption(
-        advanced=True,
-        default=None,
-        removal_version="2.27.0.dev0",
-        removal_hint=_removal_hint,
-        help="Formerly used to customise the version of Ruff to install.",
-    )
 
 
 def rules():
